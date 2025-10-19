@@ -23,8 +23,9 @@ If you use `use-package`, you can load it lazily:
 1. Visit the [Google Cloud Console](https://console.cloud.google.com/apis/credentials) and under `APIs & Services > Credentials` create **OAuth client credentials** of type **Desktop**.
 2. Copy the generated **Client ID** and **Client Secret** into the relevant customization options (see below).
 3. Go to `APIs & Services > Library`, search for `Google Tasks API`, click on the result, and click `Enable`.
-4. Run `(gtasks-authorize)` once, authorize your app in the browser, and paste the authorization code back into Emacs when prompted.
-5. Tokens are cached in `~/.emacs.d/.gtasks/token.json` by default and refreshed automatically when they expire.
+4. Setup credentials in Emacs (see *Securely providing credentials* below).
+5. Run `(gtasks-authorize)` once, authorize your app in the browser, and paste the authorization code back into Emacs when prompted.
+6. Tokens are cached in `~/.emacs.d/.gtasks/token.json` by default and refreshed automatically when they expire.
 
 > **Tip:** Ensure the token directory is only readable by you. `gtasks.el` creates it with `0700` permissions.
 
