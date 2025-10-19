@@ -404,18 +404,6 @@ Returns:
           (gtasks--http-request method url headers2 json-body))
       resp)))
 
-(defun gtasks--rfc3339-date-start (date)
-  "Convert DATE into an RFC3339 midnight timestamp.
-
-Arguments:
-- DATE: String formatted as \"YYYY-MM-DD\".
-
-Returns:
-- RFC3339 timestamp string or nil when DATE is invalid."
-  (when (and (stringp date)
-             (string-match-p "\\`[0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}\\'" date))
-    (format "%sT00:00:00.000Z" date)))
-
 ;; ----------------------------- Tasklists API -------------------------------
 
 (defun gtasks-tasklist-clear (tasklist-id)
@@ -596,23 +584,16 @@ Returns:
 
 Arguments:
 - TASKLIST-ID: Identifier of the destination tasklist.
-- TASK: Plist mapping :title, :due (YYYY-MM-DD), and :body to task data.
+- TASK: Plist representing a task.
 
 Returns:
 - Created task plist.
 
 Errors:
 - Signals `gtasks-http-error' when creation fails."
-  (let* ((title (or (plist-get task :title) "(no title)"))
-         (due   (gtasks--rfc3339-date-start (plist-get task :due)))
-         (body  (plist-get task :body))
-         (payload (delq nil
-                        `((title . ,title)
-                          ,(when due  `(due  . ,due))
-                          ,(when body `(notes . ,body)))))
-         (resp (gtasks--http "POST"
+  (let* ((resp (gtasks--http "POST"
                              (format "/lists/%s/tasks" (url-hexify-string tasklist-id))
-                             nil payload))
+                             nil task))
          (status (plist-get resp :status))
          (data   (plist-get resp :data)))
     (unless (= status 200)
