@@ -1,7 +1,18 @@
 ;;; gtasks.el --- Google Tasks API (sync)  -*- lexical-binding: t; -*-
-;;; Commentary:
 ;;
 ;; Synchronous, pure Emacs Lisp client for the Google Tasks REST API.
+;;
+;; Author: thndrbrrr@gmail.com
+;; Maintainer: thndrbrrr@gmail.com
+;; Version: 0.1.0
+;; Package-Requires: ((emacs "27.1"))
+;; URL: https://github.com/thndrbrrr/gtasks
+;; Keywords: convenience, tools, google, tasks, api
+;;
+;;; Commentary:
+;;
+;; Minimal client and helper commands for working with Google Tasks from Emacs.
+;; Provides authentication, listing/creating/updating tasks and tasklists.
 ;;
 ;; Copyright (C) 2025 thndrbrrr@gmail.com
 ;;
