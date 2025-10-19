@@ -75,6 +75,10 @@ List tasks with pagination handled automatically:
 
 For more entry points, inspect the functions beginning with `gtasks-tasklist` and `gtasks-task`.
 
+## Limitations
+
+Currently not supporting nested tasks.
+
 ## Customization
 
 All package options live under `M-x customize-group RET gtasks RET`.
