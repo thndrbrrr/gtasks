@@ -73,19 +73,38 @@ Either a string, or a zero-argument function that returns the secret."
 (defvar gtasks--access-token-expiry 0)
 
 (defun gtasks--ensure-token-directory ()
-  "Ensure token directory exists with 0700 permissions."
+  "Ensure the token directory exists with 0700 permissions.
+
+Arguments:
+- None.
+
+Returns:
+- Nil."
   (unless (file-directory-p gtasks-token-directory)
     (make-directory gtasks-token-directory t)
     (ignore-errors (set-file-modes gtasks-token-directory #o700))))
 
 (defun gtasks--write-file-secure (file content)
-  "Write CONTENT to FILE with 0600 permissions."
+  "Write CONTENT to FILE with 0600 permissions.
+
+Arguments:
+- FILE: Destination file path.
+- CONTENT: String to write securely.
+
+Returns:
+- Nil."
   (gtasks--ensure-token-directory)
   (with-temp-file file (insert content))
   (ignore-errors (set-file-modes file #o600)))
 
 (defun gtasks--read-refresh-token ()
-  "Read refresh token from `gtasks-token-file' or nil if missing."
+  "Retrieve the cached refresh token from `gtasks-token-file'.
+
+Arguments:
+- None.
+
+Returns:
+- Refresh token string or nil when absent."
   (when (file-exists-p gtasks-token-file)
     (with-temp-buffer
       (insert-file-contents gtasks-token-file)
@@ -98,14 +117,29 @@ Either a string, or a zero-argument function that returns the secret."
           (when obj (plist-get obj :refresh_token)))))))
 
 (defun gtasks--write-refresh-token (refresh)
-  "Persist REFRESH token to `gtasks-token-file'."
+  "Persist REFRESH token to `gtasks-token-file'.
+
+Arguments:
+- REFRESH: Refresh token string to cache.
+
+Returns:
+- Nil."
   (gtasks--write-file-secure
    gtasks-token-file
    (json-encode `((refresh_token . ,refresh)
                   (saved_at . ,(format-time-string "%FT%T%z"))))))
 
 (defun gtasks--client-secret ()
-  "Return the client secret from `gtasks-client-secret'."
+  "Resolve the client secret configured in `gtasks-client-secret'.
+
+Arguments:
+- None.
+
+Returns:
+- Client secret string.
+
+Errors:
+- Signals `gtasks-auth-error' when the secret is unavailable."
   (let ((v gtasks-client-secret))
     (cond
      ((stringp v) v)
@@ -124,19 +158,40 @@ Either a string, or a zero-argument function that returns the secret."
      (t (signal 'gtasks-auth-error (list (format "Invalid secret kind: %S" v)))))))
 
 (defun gtasks-authenticated-p ()
-  "Non-nil if an access token is cached and not expired."
+  "Check whether a cached access token remains valid.
+
+Arguments:
+- None.
+
+Returns:
+- Non-nil when a valid token is cached; otherwise nil."
   (and gtasks--access-token
        (> gtasks--access-token-expiry (+ (float-time (current-time)) 60))))
 
 (defun gtasks--form-urlencode (alist)
-  "Return application/x-www-form-urlencoded body for ALIST of (string . string)."
+  "Encode ALIST into an application/x-www-form-urlencoded string.
+
+Arguments:
+- ALIST: Alist of string pairs.
+
+Returns:
+- URL-encoded string suitable for HTTP bodies."
   (mapconcat (lambda (kv)
                (concat (url-hexify-string (car kv))
                        "=" (url-hexify-string (cdr kv))))
              alist "&"))
 
 (defun gtasks--ensure-access-token ()
-  "Return a valid access token, refreshing if necessary."
+  "Return a valid access token, refreshing when necessary.
+
+Arguments:
+- None.
+
+Returns:
+- Access token string ready for HTTP requests.
+
+Errors:
+- Signals `gtasks-auth-error' when no refresh token is available."
   (if (gtasks-authenticated-p)
       gtasks--access-token
     (let ((refresh (gtasks--read-refresh-token)))
@@ -174,7 +229,16 @@ Either a string, or a zero-argument function that returns the secret."
           (when (buffer-live-p buf) (kill-buffer buf)))))))
 
 (defun gtasks-authorize ()
-  "Run OAuth2 device/web flow and store the refresh token securely."
+  "Complete the OAuth2 flow and cache the refresh token.
+
+Arguments:
+- None (prompts interactively for the authorization code).
+
+Returns:
+- Nil.
+
+Errors:
+- Signals `gtasks-auth-error' when credentials are missing."
   (interactive)
   (unless (and gtasks-client-id gtasks-client-secret)
     (signal 'gtasks-auth-error '("Set `gtasks-client-id' and `gtasks-client-secret' first")))
@@ -219,7 +283,13 @@ Either a string, or a zero-argument function that returns the secret."
 ;; -------------------------------- HTTP core --------------------------------
 
 (defun gtasks--build-query (params)
-  "Return query string (without '?') from PARAMS (alist of (string . string))."
+  "Assemble an HTTP query string from PARAMS.
+
+Arguments:
+- PARAMS: Alist of string pairs.
+
+Returns:
+- Query string without the leading question mark or nil when empty."
   (when params
     (mapconcat (lambda (kv)
                  (concat (url-hexify-string (car kv))
@@ -227,22 +297,46 @@ Either a string, or a zero-argument function that returns the secret."
                params "&")))
 
 (defun gtasks--build-url (path params)
-  "Join PATH onto `gtasks-api-root' and add PARAMS.  PATHs start with '/'."
+  "Create a full request URL from PATH and PARAMS.
+
+Arguments:
+- PATH: API path beginning with a slash.
+- PARAMS: Alist for query parameters.
+
+Returns:
+- Fully qualified URL string."
   (let ((qs (gtasks--build-query params)))
     (concat (replace-regexp-in-string "/$" "" gtasks-api-root)
             path
             (if qs (concat "?" qs) ""))) )
 
 (defun gtasks--parse-json-current-buffer ()
-  "Parse JSON from current buffer point (after headers) to plist, or nil."
+  "Parse JSON from the current buffer into a plist.
+
+Arguments:
+- None (expects point positioned after HTTP headers).
+
+Returns:
+- Parsed plist or nil when parsing fails."
   (let ((json-object-type 'plist)
         (json-array-type 'list)
         (json-key-type 'keyword))
     (ignore-errors (json-parse-buffer :object-type 'plist :array-type 'list))) )
 
 (defun gtasks--http-request (method url headers json-body)
-  "Execute HTTP request with METHOD, URL, HEADERS, and JSON-BODY.
-Return plist (:status :data :headers)."
+  "Perform a synchronous HTTP request against the Tasks API.
+
+Arguments:
+- METHOD: HTTP method string such as \"GET\" or \"POST\".
+- URL: Fully qualified endpoint URL.
+- HEADERS: Alist of request headers.
+- JSON-BODY: Lisp object to encode as JSON or nil.
+
+Returns:
+- Plist containing :status, :data, and :headers keys.
+
+Errors:
+- Signals `gtasks-http-error' when the request fails."
   (let* ((body (when json-body
                  (encode-coding-string (json-encode json-body) 'utf-8)))
          (hdrs headers))
@@ -278,9 +372,17 @@ Return plist (:status :data :headers)."
         (when (buffer-live-p buf) (kill-buffer buf))))))
 
 (defun gtasks--http (method path params json-body &optional extra-headers)
-  "Execute HTTP request with METHOD, PATH, PARAMS, JSON-BODY.
-Optionally EXTRA-HEADERS can be provided.
-Retries once on 401 after refreshing token."
+  "Send an authenticated HTTP request to the Google Tasks API.
+
+Arguments:
+- METHOD: HTTP method string such as \"GET\".
+- PATH: Endpoint path beginning with a slash.
+- PARAMS: Alist of query parameters.
+- JSON-BODY: Lisp object encoded as JSON or nil.
+- EXTRA-HEADERS: Optional additional headers.
+
+Returns:
+- Plist produced by `gtasks--http-request'."
   (let* ((access (gtasks--ensure-access-token))
          (url (gtasks--build-url path params))
          (headers (append
@@ -303,7 +405,13 @@ Retries once on 401 after refreshing token."
       resp)))
 
 (defun gtasks--rfc3339-date-start (date)
-  "Convert DATE string \"YYYY-MM-DD\" to RFC3339 midnight UTC, or nil."
+  "Convert DATE into an RFC3339 midnight timestamp.
+
+Arguments:
+- DATE: String formatted as \"YYYY-MM-DD\".
+
+Returns:
+- RFC3339 timestamp string or nil when DATE is invalid."
   (when (and (stringp date)
              (string-match-p "\\`[0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}\\'" date))
     (format "%sT00:00:00.000Z" date)))
@@ -311,12 +419,17 @@ Retries once on 401 after refreshing token."
 ;; ----------------------------- Tasklists API -------------------------------
 
 (defun gtasks-tasklist-clear (tasklist-id)
-  "Clear all completed tasks from TASKLIST-ID.  Return t on 204 or 200.
+  "Remove all completed tasks from TASKLIST-ID.
 
-NOTE: Google calls this \"tasks.clear\", but it makes more sense to call it
-gtasks-tasklist-clear here.
+Arguments:
+- TASKLIST-ID: Identifier of the tasklist to clear.
 
-See https://developers.google.com/workspace/tasks/reference/rest/v1/tasks/clear"
+Returns:
+- Non-nil when the API responds with HTTP 200 or 204.
+
+Notes:
+- Google labels this endpoint \"tasks.clear\".
+- See https://developers.google.com/workspace/tasks/reference/rest/v1/tasks/clear"
   (let* ((resp (gtasks--http "POST"
                              (format "/lists/%s/clear" (url-hexify-string tasklist-id))
                              nil nil))
@@ -324,7 +437,13 @@ See https://developers.google.com/workspace/tasks/reference/rest/v1/tasks/clear"
     (or (eq status 204) (eq status 200))))
 
 (defun gtasks-tasklist-delete (tasklist-id)
-  "DELETE tasklist TASKLIST-ID.  Return t on HTTP 204."
+  "Delete the tasklist identified by TASKLIST-ID.
+
+Arguments:
+- TASKLIST-ID: Identifier of the tasklist to remove.
+
+Returns:
+- Non-nil when the API responds with HTTP 204."
   (let* ((resp (gtasks--http "DELETE"
                              (format "/users/@me/lists/%s" (url-hexify-string tasklist-id))
                              nil nil))
@@ -332,7 +451,13 @@ See https://developers.google.com/workspace/tasks/reference/rest/v1/tasks/clear"
     (eq status 204)))
 
 (defun gtasks-tasklist-get (tasklist-id)
-  "Fetch a single tasklist by TASKLIST-ID.  Return plist or nil on 404."
+  "Fetch a tasklist identified by TASKLIST-ID.
+
+Arguments:
+- TASKLIST-ID: Identifier of the tasklist to retrieve.
+
+Returns:
+- Tasklist plist on success or nil when not found."
   (let* ((resp (gtasks--http "GET"
                              (format "/users/@me/lists/%s" (url-hexify-string tasklist-id))
                              nil nil))
@@ -341,8 +466,16 @@ See https://developers.google.com/workspace/tasks/reference/rest/v1/tasks/clear"
     (and (= status 200) data)))
 
 (defun gtasks-tasklist-insert (tasklist)
-  "Create a tasklist from TASKLIST plist; return created tasklist plist.
-TASKLIST is a plist of fields accepted by the API, e.g. (:title \"Groceries\")."
+  "Create a new tasklist using TASKLIST fields.
+
+Arguments:
+- TASKLIST: Plist accepted by the API, such as (:title \"Groceries\").
+
+Returns:
+- Plist describing the created tasklist.
+
+Errors:
+- Signals `gtasks-http-error' when creation fails."
   (let* ((resp   (gtasks--http "POST" "/users/@me/lists" nil tasklist))
          (status (plist-get resp :status))
          (data   (plist-get resp :data)))
@@ -352,8 +485,16 @@ TASKLIST is a plist of fields accepted by the API, e.g. (:title \"Groceries\")."
     data))
 
 (defun gtasks-tasklist-list ()
-  "Return all tasklists as plist (:items LIST).
-Paginates through the API responses."
+  "List all tasklists for the current user.
+
+Arguments:
+- None.
+
+Returns:
+- Plist containing :items with every tasklist.
+
+Notes:
+- Automatically paginates through API responses."
   (let ((items nil)
         (params nil)
         resp data next)
@@ -370,8 +511,17 @@ Paginates through the API responses."
 	  (throw 'done (list :items items)))))))
 
 (defun gtasks-tasklist-patch (tasklist-id payload)
-  "PATCH tasklist TASKLIST-ID with PAYLOAD plist.
-Return updated tasklist as plist."
+  "Apply a partial update PAYLOAD to TASKLIST-ID.
+
+Arguments:
+- TASKLIST-ID: Identifier of the tasklist to update.
+- PAYLOAD: Plist of fields to patch.
+
+Returns:
+- Updated tasklist plist.
+
+Errors:
+- Signals `gtasks-http-error' when the patch fails."
   (let* ((resp (gtasks--http "PATCH"
                              (format "/users/@me/lists/%s" (url-hexify-string tasklist-id))
                              nil payload))
@@ -382,7 +532,16 @@ Return updated tasklist as plist."
     data))
 
 (defun gtasks-tasklist-update (tasklist)
-  "PUT full TASKLIST plist (must include :id); return updated tasklist plist."
+  "Replace tasklist with TASKLIST.
+
+Arguments:
+- TASKLIST: Plist describing the tasklist.  Must include :id.
+
+Returns:
+- Updated tasklist plist.
+
+Errors:
+- Signals `gtasks-error' or `gtasks-http-error' on failure."
   (let* ((id (plist-get tasklist :id)))
     (unless (and id (stringp id))
       (signal 'gtasks-error '("gtasks-tasklist-update: TASKLIST missing string :id")))
@@ -398,7 +557,14 @@ Return updated tasklist as plist."
 ;; --------------------------------- Tasks API --------------------------------
 
 (defun gtasks-task-delete (tasklist-id task-id)
-  "DELETE task TASK-ID from tasklist TASKLIST-ID.  Return t on success."
+  "Delete TASK-ID from TASKLIST-ID.
+
+Arguments:
+- TASKLIST-ID: Identifier of the tasklist.
+- TASK-ID: Identifier of the task to delete.
+
+Returns:
+- Non-nil when the API responds with HTTP 204."
   (let* ((resp (gtasks--http "DELETE"
                              (format "/lists/%s/tasks/%s"
                                      (url-hexify-string tasklist-id)
@@ -408,8 +574,14 @@ Return updated tasklist as plist."
     (eq status 204)))
 
 (defun gtasks-task-get (tasklist-id task-id)
-  "GET task by TASKLIST-ID and TASK-ID.
-Return task as plist or nil if not found."
+  "Retrieve TASK-ID from TASKLIST-ID.
+
+Arguments:
+- TASKLIST-ID: Identifier of the tasklist.
+- TASK-ID: Identifier of the task to fetch.
+
+Returns:
+- Task plist when found or nil otherwise."
   (let* ((resp (gtasks--http "GET"
                              (format "/lists/%s/tasks/%s"
                                      (url-hexify-string tasklist-id)
@@ -420,10 +592,17 @@ Return task as plist or nil if not found."
     (and (= status 200) data)))
 
 (defun gtasks-task-insert (tasklist-id task)
-  "Create a Google Task in TASKLIST-ID from TASK plist.
+  "Create a task within TASKLIST-ID using TASK fields.
 
-TASK maps :title to title, :due (YYYY-MM-DD) to due (RFC3339), :body to notes.
-Return created task as plist."
+Arguments:
+- TASKLIST-ID: Identifier of the destination tasklist.
+- TASK: Plist mapping :title, :due (YYYY-MM-DD), and :body to task data.
+
+Returns:
+- Created task plist.
+
+Errors:
+- Signals `gtasks-http-error' when creation fails."
   (let* ((title (or (plist-get task :title) "(no title)"))
          (due   (gtasks--rfc3339-date-start (plist-get task :due)))
          (body  (plist-get task :body))
@@ -441,15 +620,21 @@ Return created task as plist."
     data))
 
 (defun gtasks-task-list (tasklist-id &optional show-completed show-deleted show-hidden)
-  "Return all tasks in tasklist TASKLIST-ID as plist (:items LIST).
-Paginates through the API responses, 100 tasks per page.
+  "List tasks in TASKLIST-ID with optional visibility filters.
 
-Optional filters SHOW-COMPLETED, SHOW-DELETED, SHOW-HIDDEN all default to nil.
+Arguments:
+- TASKLIST-ID: Identifier of the tasklist to inspect.
+- SHOW-COMPLETED: Non-nil to include completed tasks.
+- SHOW-DELETED: Non-nil to include deleted tasks.
+- SHOW-HIDDEN: Non-nil to include hidden tasks.
 
-NOTE: Google's defaults for these options are showCompleted=True,
-showDeleted=False, and showHidden=False, but opting for consistency here.
+Returns:
+- Plist containing :items with every matching task.
 
-See https://developers.google.com/workspace/tasks/reference/rest/v1/tasks/list"
+Notes:
+- Requests at most 100 tasks per page and paginates automatically.
+- Google's defaults differ; this wrapper defaults the filters to nil.
+- See https://developers.google.com/workspace/tasks/reference/rest/v1/tasks/list"
   (let* ((params `(("showHidden"    . ,(if show-hidden "true" "false"))
                    ("showDeleted"   . ,(if show-deleted "true" "false"))
                    ("showCompleted" . ,(if show-completed "true" "false"))
@@ -472,8 +657,18 @@ See https://developers.google.com/workspace/tasks/reference/rest/v1/tasks/list"
           (throw 'done (list :items items)))))))
 
 (defun gtasks-task-patch (tasklist-id task-id payload)
-  "PATCH task TASK-ID in tasklist TASKLIST-ID with PAYLOAD plist.
-Return updated task as plist."
+  "Apply partial PAYLOAD update to TASK-ID in TASKLIST-ID.
+
+Arguments:
+- TASKLIST-ID: Identifier of the tasklist.
+- TASK-ID: Identifier of the task to modify.
+- PAYLOAD: Plist of fields to update.
+
+Returns:
+- Updated task plist.
+
+Errors:
+- Signals `gtasks-http-error' when the patch fails."
   (let* ((resp (gtasks--http "PATCH"
                              (format "/lists/%s/tasks/%s"
                                      (url-hexify-string tasklist-id)
@@ -486,10 +681,20 @@ Return updated task as plist."
     data))
 
 (defun gtasks-task-move (tasklist-id task-id &optional parent previous dest-tasklist-id)
-  "Move task TASK-ID in TASKLIST-ID within the current list or to another list.
-PARENT is the parent task's id, PREVIOUS is sibling task's id.
-DEST-TASKLIST-ID is the destination tasklist ID.
-Return moved task as plist."
+  "Move TASK-ID within TASKLIST-ID or to another list.
+
+Arguments:
+- TASKLIST-ID: Identifier of the current tasklist.
+- TASK-ID: Identifier of the task to move.
+- PARENT: Optional parent task identifier.
+- PREVIOUS: Optional previous sibling identifier.
+- DEST-TASKLIST-ID: Optional destination tasklist identifier.
+
+Returns:
+- Updated task plist.
+
+Errors:
+- Signals `gtasks-http-error' when the move fails."
   (let ((params nil))
     (when parent   (push (cons "parent" parent) params))
     (when previous (push (cons "previous" previous) params))
@@ -506,8 +711,18 @@ Return moved task as plist."
       data)))
 
 (defun gtasks-task-update (tasklist-id task-id task)
-  "PUT TASK for TASK-ID in TASKLIST-ID; TASK is a plist of fields.
-Return updated task as plist."
+  "Replace TASK-ID in TASKLIST-ID with TASK.
+
+Arguments:
+- TASKLIST-ID: Identifier of the tasklist.
+- TASK-ID: Identifier of the task to replace.
+- TASK: Plist representing the updated task payload.  Must include :id.
+
+Returns:
+- Updated task plist.
+
+Errors:
+- Signals `gtasks-http-error' when the update fails."
   (let* ((resp (gtasks--http "PUT"
                              (format "/lists/%s/tasks/%s"
                                      (url-hexify-string tasklist-id)
@@ -522,7 +737,13 @@ Return updated task as plist."
 ;; ---------------------------- Convenience helpers ---------------------------
 
 (defun gtasks-tasklist-id-by-title (title)
-  "Return tasklist id for tasklist named TITLE, or nil if not found."
+  "Find the tasklist identifier whose title matches TITLE.
+
+Arguments:
+- TITLE: Tasklist title string to search for.
+
+Returns:
+- Tasklist identifier string or nil when no match is found."
   (let* ((lists (plist-get (gtasks-tasklist-list) :items))
          (found nil)
          (xs lists))
@@ -534,7 +755,14 @@ Return updated task as plist."
     (when found (plist-get found :id))))
 
 (defun gtasks-task-complete (tasklist-id task-id)
-  "Mark task TASK-ID in TASKLIST-ID as completed.  Return t on success."
+  "Mark TASK-ID in TASKLIST-ID as completed.
+
+Arguments:
+- TASKLIST-ID: Identifier of the tasklist.
+- TASK-ID: Identifier of the task to complete.
+
+Returns:
+- t when the patch succeeds."
   (let ((payload `(:status "completed")))
     (ignore (gtasks-task-patch tasklist-id task-id payload))
     t))
