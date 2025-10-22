@@ -60,8 +60,8 @@ Create a tasklist and add two tasks:
        (birthday-list-id (plist-get birthday-list :id))
        (task-1 (gtasks-task-insert birthday-list-id
 				   (list :title "Get birthday card"
-					 :notes "Something funny"
-					 :due "2025-11-05T00:00:00.000Z")))
+					     :notes "Something funny"
+					     :due "2025-11-05T00:00:00.000Z")))
        (task-2 (gtasks-task-insert birthday-list-id
 				   (list :title "Bake cake"))))
   (message "Task 1 ID: %s" (plist-get task-1 :id)))
