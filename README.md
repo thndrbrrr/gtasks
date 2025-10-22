@@ -44,22 +44,41 @@ You can configure `gtasks.el` using either a plain client secret (which is not r
 
 ## Usage
 
-The library exposes synchronous helpers that return plists matching the Google Tasks responses.
+The library exposes synchronous helpers that return plists matching the Google Tasks API responses.
 
-List tasklists:
+List titles of tasklists:
 
 ```elisp
-(let ((lists (gtasks-tasklist-list)))
-  (mapcar (lambda (list) (plist-get list :title))
-          (plist-get lists :items)))
+(mapcar (lambda (list) (plist-get list :title))
+        (plist-get (gtasks-tasklist-list) :items))
 ```
 
-Create a task:
+Create a tasklist and add two tasks:
 
 ```elisp
-(let* ((list-id (gtasks-tasklist-id-by-title "Personal"))
-       (task (gtasks-task-insert list-id '(:title "Review pull requests"))))
-  (plist-get task :id))
+(let* ((birthday-list (gtasks-tasklist-insert '(:title "Birthday")))
+       (birthday-list-id (plist-get birthday-list :id))
+       (task-1 (gtasks-task-insert birthday-list-id
+				   (list :title "Get birthday card"
+					 :notes "Something funny"
+					 :due "2025-11-05T00:00:00.000Z")))
+       (task-2 (gtasks-task-insert birthday-list-id
+				   (list :title "Bake cake"))))
+  (message "Task 1 ID: %s" (plist-get task-1 :id)))
+```
+
+Find a tasklist's ID by its title:
+
+```elisp
+(let ((birthday-list-id (gtasks-tasklist-id-by-title "Birthday")))
+  ;; Do something with the list ...
+  )
+```
+
+Retrieve all tasks from a tasklist:
+
+```elisp
+(gtasks-task-list list-id)
 ```
 
 Mark a task as complete:
@@ -68,13 +87,19 @@ Mark a task as complete:
 (gtasks-task-complete list-id task-id)
 ```
 
-List tasks with pagination handled automatically:
+Move a task to another tasklist:
 
 ```elisp
-(gtasks-task-list list-id)
+(gtasks-task-move tasklist-id task-id dest-tasklist-id)
 ```
 
-For more entry points, inspect the functions beginning with `gtasks-tasklist` and `gtasks-task`.
+Delete a tasklist:
+
+```elisp
+(gtasks-tasklist-delete (gtasks-tasklist-id-by-title "Birthday"))
+```
+
+For more entry points, inspect the functions starting with `gtasks-tasklist-` and `gtasks-task-`.
 
 ## Limitations
 
