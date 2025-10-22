@@ -4,7 +4,7 @@
 ;;
 ;; Author: thndrbrrr@gmail.com
 ;; Maintainer: thndrbrrr@gmail.com
-;; Version: 0.2.0
+;; Version: 0.2.1
 ;; Package-Requires: ((emacs "27.1"))
 ;; URL: https://github.com/thndrbrrr/gtasks
 ;; Keywords: convenience, tools, google, tasks, api
@@ -432,11 +432,11 @@ Returns:
 
 ;; ----------------------------- Tasklists API -------------------------------
 
-(defun gtasks-tasklist-clear (tasklist-id)
-  "Remove all completed tasks from TASKLIST-ID.
+(defun gtasks-list-clear (list-id)
+  "Remove all completed tasks from LIST-ID.
 
 Arguments:
-- TASKLIST-ID: Identifier of the tasklist to clear.
+- LIST-ID: Identifier of the tasklist to clear.
 
 Returns:
 - Non-nil when the API responds with HTTP 200 or 204.
@@ -445,60 +445,60 @@ Notes:
 - Google labels this endpoint \"tasks.clear\".
 - See https://developers.google.com/workspace/tasks/reference/rest/v1/tasks/clear"
   (let* ((resp (gtasks--http "POST"
-                             (format "/lists/%s/clear" (url-hexify-string tasklist-id))
+                             (format "/lists/%s/clear" (url-hexify-string list-id))
                              nil nil))
          (status (plist-get resp :status)))
     (or (eq status 204) (eq status 200))))
 
-(defun gtasks-tasklist-delete (tasklist-id)
-  "Delete the tasklist identified by TASKLIST-ID.
+(defun gtasks-list-delete (list-id)
+  "Delete the tasklist identified by LIST-ID.
 
 Arguments:
-- TASKLIST-ID: Identifier of the tasklist to remove.
+- LIST-ID: Identifier of the tasklist to remove.
 
 Returns:
 - Non-nil when the API responds with HTTP 204."
   (let* ((resp (gtasks--http "DELETE"
-                             (format "/users/@me/lists/%s" (url-hexify-string tasklist-id))
+                             (format "/users/@me/lists/%s" (url-hexify-string list-id))
                              nil nil))
          (status (plist-get resp :status)))
     (eq status 204)))
 
-(defun gtasks-tasklist-get (tasklist-id)
-  "Fetch a tasklist identified by TASKLIST-ID.
+(defun gtasks-list-get (list-id)
+  "Fetch a tasklist identified by LIST-ID.
 
 Arguments:
-- TASKLIST-ID: Identifier of the tasklist to retrieve.
+- LIST-ID: Identifier of the tasklist to retrieve.
 
 Returns:
 - Tasklist plist on success or nil when not found."
   (let* ((resp (gtasks--http "GET"
-                             (format "/users/@me/lists/%s" (url-hexify-string tasklist-id))
+                             (format "/users/@me/lists/%s" (url-hexify-string list-id))
                              nil nil))
          (status (plist-get resp :status))
          (data (plist-get resp :data)))
     (and (= status 200) data)))
 
-(defun gtasks-tasklist-insert (tasklist)
-  "Create a new tasklist using TASKLIST fields.
+(defun gtasks-list-insert (tlist)
+  "Create a new tasklist using TLIST fields.
 
 Arguments:
-- TASKLIST: Plist accepted by the API, such as (:title \"Groceries\").
+- TLIST: Plist accepted by the API, such as (:title \"Groceries\").
 
 Returns:
-- Plist describing the created tasklist.
+- Plist describing the created tlist.
 
 Errors:
 - Signals `gtasks-http-error' when creation fails."
-  (let* ((resp   (gtasks--http "POST" "/users/@me/lists" nil tasklist))
+  (let* ((resp   (gtasks--http "POST" "/users/@me/lists" nil tlist))
          (status (plist-get resp :status))
          (data   (plist-get resp :data)))
     (unless (and (>= status 200) (< status 300) data)
       (signal 'gtasks-http-error
-              (list (format "Failed to create tasklist (status %s): %S" status data))))
+              (list (format "Failed to create tlist (status %s): %S" status data))))
     data))
 
-(defun gtasks-tasklist-list ()
+(defun gtasks-list-list ()
   "List all tasklists for the current user.
 
 Arguments:
@@ -524,11 +524,11 @@ Notes:
 	    (setq params `(("pageToken" . ,next)))
 	  (throw 'done (list :items items)))))))
 
-(defun gtasks-tasklist-patch (tasklist-id payload)
-  "Apply a partial update PAYLOAD to TASKLIST-ID.
+(defun gtasks-list-patch (list-id payload)
+  "Apply a partial update PAYLOAD to LIST-ID.
 
 Arguments:
-- TASKLIST-ID: Identifier of the tasklist to update.
+- LIST-ID: Identifier of the tasklist to update.
 - PAYLOAD: Plist of fields to patch.
 
 Returns:
@@ -537,7 +537,7 @@ Returns:
 Errors:
 - Signals `gtasks-http-error' when the patch fails."
   (let* ((resp (gtasks--http "PATCH"
-                             (format "/users/@me/lists/%s" (url-hexify-string tasklist-id))
+                             (format "/users/@me/lists/%s" (url-hexify-string list-id))
                              nil payload))
          (status (plist-get resp :status))
          (data (plist-get resp :data)))
@@ -545,23 +545,23 @@ Errors:
       (signal 'gtasks-http-error (list (format "Patch tasklist failed (%s): %S" status data))))
     data))
 
-(defun gtasks-tasklist-update (tasklist)
-  "Replace tasklist with TASKLIST.
+(defun gtasks-list-update (tlist)
+  "Replace tasklist with TLIST.
 
 Arguments:
-- TASKLIST: Plist describing the tasklist.  Must include :id.
+- TLIST: Plist describing the tasklist.  Must include :id.
 
 Returns:
 - Updated tasklist plist.
 
 Errors:
 - Signals `gtasks-error' or `gtasks-http-error' on failure."
-  (let* ((id (plist-get tasklist :id)))
+  (let* ((id (plist-get tlist :id)))
     (unless (and id (stringp id))
-      (signal 'gtasks-error '("gtasks-tasklist-update: TASKLIST missing string :id")))
+      (signal 'gtasks-error '("gtasks-list-update: TLIST missing string :id")))
     (let* ((resp (gtasks--http "PUT"
                                (format "/users/@me/lists/%s" (url-hexify-string id))
-                               nil tasklist))
+                               nil tlist))
            (status (plist-get resp :status))
            (data (plist-get resp :data)))
       (unless (= status 200)
@@ -570,46 +570,46 @@ Errors:
 
 ;; --------------------------------- Tasks API --------------------------------
 
-(defun gtasks-task-delete (tasklist-id task-id)
-  "Delete TASK-ID from TASKLIST-ID.
+(defun gtasks-task-delete (list-id task-id)
+  "Delete TASK-ID from LIST-ID.
 
 Arguments:
-- TASKLIST-ID: Identifier of the tasklist.
+- LIST-ID: Identifier of the tasklist.
 - TASK-ID: Identifier of the task to delete.
 
 Returns:
 - Non-nil when the API responds with HTTP 204."
   (let* ((resp (gtasks--http "DELETE"
                              (format "/lists/%s/tasks/%s"
-                                     (url-hexify-string tasklist-id)
+                                     (url-hexify-string list-id)
                                      (url-hexify-string task-id))
                              nil nil))
          (status (plist-get resp :status)))
     (eq status 204)))
 
-(defun gtasks-task-get (tasklist-id task-id)
-  "Retrieve TASK-ID from TASKLIST-ID.
+(defun gtasks-task-get (list-id task-id)
+  "Retrieve TASK-ID from LIST-ID.
 
 Arguments:
-- TASKLIST-ID: Identifier of the tasklist.
+- LIST-ID: Identifier of the tasklist.
 - TASK-ID: Identifier of the task to fetch.
 
 Returns:
 - Task plist when found or nil otherwise."
   (let* ((resp (gtasks--http "GET"
                              (format "/lists/%s/tasks/%s"
-                                     (url-hexify-string tasklist-id)
+                                     (url-hexify-string list-id)
                                      (url-hexify-string task-id))
                              nil nil))
          (status (plist-get resp :status))
          (data (plist-get resp :data)))
     (and (= status 200) data)))
 
-(defun gtasks-task-insert (tasklist-id task)
-  "Create a task within TASKLIST-ID using TASK fields.
+(defun gtasks-task-insert (list-id task)
+  "Create a task within LIST-ID using TASK fields.
 
 Arguments:
-- TASKLIST-ID: Identifier of the destination tasklist.
+- LIST-ID: Identifier of the destination tasklist.
 - TASK: Plist representing a task.
 
 Returns:
@@ -618,7 +618,7 @@ Returns:
 Errors:
 - Signals `gtasks-http-error' when creation fails."
   (let* ((resp (gtasks--http "POST"
-                             (format "/lists/%s/tasks" (url-hexify-string tasklist-id))
+                             (format "/lists/%s/tasks" (url-hexify-string list-id))
                              nil task))
          (status (plist-get resp :status))
          (data   (plist-get resp :data)))
@@ -626,11 +626,11 @@ Errors:
       (signal 'gtasks-http-error (list (format "Create task failed (%s): %S" status data))))
     data))
 
-(defun gtasks-task-list (tasklist-id &optional show-completed show-deleted show-hidden)
-  "List tasks in TASKLIST-ID with optional visibility filters.
+(defun gtasks-task-list (list-id &optional show-completed show-deleted show-hidden)
+  "List tasks in LIST-ID with optional visibility filters.
 
 Arguments:
-- TASKLIST-ID: Identifier of the tasklist to inspect.
+- LIST-ID: Identifier of the tasklist to inspect.
 - SHOW-COMPLETED: Non-nil to include completed tasks.
 - SHOW-DELETED: Non-nil to include deleted tasks.
 - SHOW-HIDDEN: Non-nil to include hidden tasks.
@@ -651,7 +651,7 @@ Notes:
     (catch 'done
       (while t
         (setq resp (gtasks--http "GET"
-                                 (format "/lists/%s/tasks" (url-hexify-string tasklist-id))
+                                 (format "/lists/%s/tasks" (url-hexify-string list-id))
                                  params nil)
               data (plist-get resp :data))
         (unless (and data (plist-member data :items))
@@ -663,11 +663,11 @@ Notes:
             (setf (alist-get "pageToken" params nil 'remove #'string=) next)
           (throw 'done (list :items items)))))))
 
-(defun gtasks-task-patch (tasklist-id task-id payload)
-  "Apply partial PAYLOAD update to TASK-ID in TASKLIST-ID.
+(defun gtasks-task-patch (list-id task-id payload)
+  "Apply partial PAYLOAD update to TASK-ID in LIST-ID.
 
 Arguments:
-- TASKLIST-ID: Identifier of the tasklist.
+- LIST-ID: Identifier of the tasklist.
 - TASK-ID: Identifier of the task to modify.
 - PAYLOAD: Plist of fields to update.
 
@@ -678,7 +678,7 @@ Errors:
 - Signals `gtasks-http-error' when the patch fails."
   (let* ((resp (gtasks--http "PATCH"
                              (format "/lists/%s/tasks/%s"
-                                     (url-hexify-string tasklist-id)
+                                     (url-hexify-string list-id)
                                      (url-hexify-string task-id))
                              nil payload))
          (status (plist-get resp :status))
@@ -687,13 +687,13 @@ Errors:
       (signal 'gtasks-http-error (list (format "Patch task failed (%s): %S" status data))))
     data))
 
-(defun gtasks-task-move (tasklist-id task-id &optional dest-tasklist-id parent previous)
-  "Move TASK-ID within TASKLIST-ID or to another list.
+(defun gtasks-task-move (list-id task-id &optional dest-list-id parent previous)
+  "Move TASK-ID within LIST-ID or to another list.
 
 Arguments:
-- TASKLIST-ID: Identifier of the current tasklist.
+- LIST-ID: Identifier of the current tasklist.
 - TASK-ID: Identifier of the task to move.
-- DEST-TASKLIST-ID: Optional destination tasklist identifier.
+- DEST-LIST-ID: Optional destination tasklist identifier.
 - PARENT: Optional parent task identifier.
 - PREVIOUS: Optional previous sibling identifier.
 
@@ -705,10 +705,10 @@ Errors:
   (let ((params nil))
     (when parent   (push (cons "parent" parent) params))
     (when previous (push (cons "previous" previous) params))
-    (when dest-tasklist-id (push (cons "destinationTasklist" dest-tasklist-id) params))
+    (when dest-list-id (push (cons "destinationTasklist" dest-list-id) params))
     (let* ((resp (gtasks--http "POST"
                                (format "/lists/%s/tasks/%s/move"
-                                       (url-hexify-string tasklist-id)
+                                       (url-hexify-string list-id)
                                        (url-hexify-string task-id))
                                params nil))
            (status (plist-get resp :status))
@@ -717,11 +717,11 @@ Errors:
         (signal 'gtasks-http-error (list (format "Move task failed (%s): %S" status data))))
       data)))
 
-(defun gtasks-task-update (tasklist-id task-id task)
-  "Replace TASK-ID in TASKLIST-ID with TASK.
+(defun gtasks-task-update (list-id task-id task)
+  "Replace TASK-ID in LIST-ID with TASK.
 
 Arguments:
-- TASKLIST-ID: Identifier of the tasklist.
+- LIST-ID: Identifier of the tasklist.
 - TASK-ID: Identifier of the task to replace.
 - TASK: Plist representing the updated task payload.  Must include :id.
 
@@ -732,7 +732,7 @@ Errors:
 - Signals `gtasks-http-error' when the update fails."
   (let* ((resp (gtasks--http "PUT"
                              (format "/lists/%s/tasks/%s"
-                                     (url-hexify-string tasklist-id)
+                                     (url-hexify-string list-id)
                                      (url-hexify-string task-id))
                              nil task))
          (status (plist-get resp :status))
@@ -743,7 +743,7 @@ Errors:
 
 ;; ---------------------------- Convenience helpers ---------------------------
 
-(defun gtasks-tasklist-id-by-title (title)
+(defun gtasks-list-id-by-title (title)
   "Find the tasklist identifier whose title matches TITLE.
 
 Arguments:
@@ -751,7 +751,7 @@ Arguments:
 
 Returns:
 - Tasklist identifier string or nil when no match is found."
-  (let* ((lists (plist-get (gtasks-tasklist-list) :items))
+  (let* ((lists (plist-get (gtasks-list-list) :items))
          (found nil)
          (xs lists))
     (while (and xs (not found))
@@ -761,17 +761,17 @@ Returns:
       (setq xs (cdr xs)))
     (when found (plist-get found :id))))
 
-(defun gtasks-task-complete (tasklist-id task-id)
-  "Mark TASK-ID in TASKLIST-ID as completed.
+(defun gtasks-task-complete (list-id task-id)
+  "Mark TASK-ID in LIST-ID as completed.
 
 Arguments:
-- TASKLIST-ID: Identifier of the tasklist.
+- LIST-ID: Identifier of the tasklist.
 - TASK-ID: Identifier of the task to complete.
 
 Returns:
 - t when the patch succeeds."
   (let ((payload `(:status "completed")))
-    (ignore (gtasks-task-patch tasklist-id task-id payload))
+    (ignore (gtasks-task-patch list-id task-id payload))
     t))
 
 (provide 'gtasks)
