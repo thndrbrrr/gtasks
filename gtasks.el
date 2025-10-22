@@ -687,15 +687,15 @@ Errors:
       (signal 'gtasks-http-error (list (format "Patch task failed (%s): %S" status data))))
     data))
 
-(defun gtasks-task-move (tasklist-id task-id &optional parent previous dest-tasklist-id)
+(defun gtasks-task-move (tasklist-id task-id &optional dest-tasklist-id parent previous)
   "Move TASK-ID within TASKLIST-ID or to another list.
 
 Arguments:
 - TASKLIST-ID: Identifier of the current tasklist.
 - TASK-ID: Identifier of the task to move.
+- DEST-TASKLIST-ID: Optional destination tasklist identifier.
 - PARENT: Optional parent task identifier.
 - PREVIOUS: Optional previous sibling identifier.
-- DEST-TASKLIST-ID: Optional destination tasklist identifier.
 
 Returns:
 - Updated task plist.
