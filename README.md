@@ -50,13 +50,13 @@ List titles of tasklists:
 
 ```elisp
 (mapcar (lambda (list) (plist-get list :title))
-        (plist-get (gtasks-tasklist-list) :items))
+        (plist-get (gtasks-list-list) :items))
 ```
 
 Create a tasklist and add two tasks:
 
 ```elisp
-(let* ((birthday-list (gtasks-tasklist-insert '(:title "Birthday")))
+(let* ((birthday-list (gtasks-list-insert '(:title "Birthday")))
        (birthday-list-id (plist-get birthday-list :id))
        (task-1 (gtasks-task-insert birthday-list-id
 				   (list :title "Get birthday card"
@@ -70,7 +70,7 @@ Create a tasklist and add two tasks:
 Find a tasklist's ID by its title:
 
 ```elisp
-(let ((birthday-list-id (gtasks-tasklist-id-by-title "Birthday")))
+(let ((birthday-list-id (gtasks-list-id-by-title "Birthday")))
   ;; Do something with the list ...
   )
 ```
@@ -90,16 +90,16 @@ Mark a task as complete:
 Move a task to another tasklist:
 
 ```elisp
-(gtasks-task-move tasklist-id task-id dest-tasklist-id)
+(gtasks-task-move list-id task-id dest-list-id)
 ```
 
 Delete a tasklist:
 
 ```elisp
-(gtasks-tasklist-delete (gtasks-tasklist-id-by-title "Birthday"))
+(gtasks-list-delete (gtasks-list-id-by-title "Birthday"))
 ```
 
-For more entry points, inspect the functions starting with `gtasks-tasklist-` and `gtasks-task-`.
+For more entry points, inspect the functions starting with `gtasks-list-` and `gtasks-task-`.
 
 ## Limitations
 
