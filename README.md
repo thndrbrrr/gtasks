@@ -11,13 +11,6 @@ Add the repository to your `load-path` and require the library:
 (require 'gtasks)
 ```
 
-If you use `use-package`, you can load it lazily:
-
-```elisp
-(use-package gtasks
-  :load-path "~/src/gtasks")
-```
-
 ## Authorization
 
 1. Visit the [Google Cloud Console](https://console.cloud.google.com/apis/credentials) and under `APIs & Services > Credentials` create **OAuth client credentials** of type **Desktop**.
