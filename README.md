@@ -1,10 +1,19 @@
 # gtasks.el
 
+[![License: GPL v3](https://img.shields.io/badge/License-GPL_v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0) [![MELPA](https://melpa.org/packages/gtasks-badge.svg)](https://melpa.org/#/gtasks)
+
 `gtasks.el` is a synchronous Emacs Lisp client for the Google Tasks REST API. It provides functions for listing, creating, and modifying tasklists and tasks.
 
 ## Installation
 
-Add the repository to your `load-path` and require the library:
+`gtasks.el` is available on [MELPA](https://melpa.org/) and can be installed by adding the following to your Emacs init file:
+
+```elisp
+(use-package gtasks
+  :ensure t)
+```
+
+Alternatively, you can clone this repository, add the directory to your `load-path`, and require the library:
 
 ```elisp
 (add-to-list 'load-path "/path/to/gtasks")
@@ -92,7 +101,7 @@ Delete a tasklist:
 (gtasks-list-delete (gtasks-list-id-by-title "Birthday"))
 ```
 
-For more entry points, inspect the functions starting with `gtasks-list-` and `gtasks-task-`.
+For more entry points and detailed documentation, inspect the functions starting with `gtasks-list-` and `gtasks-task-`.
 
 ## Limitations
 
