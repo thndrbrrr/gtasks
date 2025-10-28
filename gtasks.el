@@ -63,7 +63,7 @@ Either a string, or a zero-argument function that returns the secret."
   :type 'file)
 
 (defcustom gtasks-user-agent
-  (format "Emacs/%s gtasks.el/0.1" emacs-version)
+  (format "Emacs/%s gtasks.el/0.2" emacs-version)
   "User-Agent header string sent with requests."
   :type 'string)
 
