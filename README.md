@@ -103,10 +103,6 @@ Delete a tasklist:
 
 For more entry points and detailed documentation, inspect the functions starting with `gtasks-list-` and `gtasks-task-`.
 
-## Limitations
-
-Currently not supporting nested tasks.
-
 ## Customization
 
 All package options live under `M-x customize-group RET gtasks RET`.
